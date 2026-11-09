@@ -233,7 +233,8 @@ table.rt{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
 .r-row{display:grid;grid-template-columns:112px 1fr;border:1px solid var(--r-line);border-top:0;font-size:12px}
 .r-row>div{padding:5px 9px;min-width:0;word-break:break-word;white-space:pre-wrap}
 .r-row>div:first-child{background:var(--r-zebra);border-right:1px solid var(--r-line);color:var(--r-ink2)}
-.r-row.empty>div:last-child{color:var(--r-ink3)}
+.r-row.empty>div{color:var(--r-ink3)}
+.r-row.empty{margin-top:6px;border-top:1px solid var(--r-line)}
 
 .rp-page.tight{font-size:11.5px;line-height:1.45}
 .tight .rp-flow{gap:6px}
@@ -314,7 +315,7 @@ const wd=s=>WD[parse(s).getDay()];
 const todayISO=()=>iso(new Date());
 const nowHM=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())};
 const clone=o=>JSON.parse(JSON.stringify(o));
-const range=(s,e)=>{const out=[];let d=s;let g=0;while(d<=e&&g<400){out.push(d);d=addDays(d,1);g++}return out};
+const range=(s,e)=>{const out=[];let d=s;let g=0;while(d<=e&&g<20000){out.push(d);d=addDays(d,1);g++}return out};
 const fmt=(n,dp=1)=>Number.isFinite(n)?(Math.round(n*10**dp)/10**dp).toFixed(dp):'—';
 const lsGet=k=>{try{return JSON.parse(localStorage.getItem('eve.'+k))}catch(e){return null}};
 const lsSet=(k,v)=>{try{localStorage.setItem('eve.'+k,JSON.stringify(v))}catch(e){}};
@@ -895,9 +896,9 @@ function buildBlocks(s,e,tight){
   add(act.length?`<table class="rt"><colgroup><col style="width:100px"><col></colgroup><thead><tr><th>交代日期</th><th>內容</th></tr></thead><tbody>${act.map(i=>`<tr><td class="c">${i.date.replace(/-/g,'/')}</td><td style="white-space:pre-wrap">${esc(i.text)}</td></tr>`).join('')}</tbody></table>`:`<div class="r-note">目前沒有執行中的交代事項。</div>`);
 
   const ev=D.rec.filter(r=>r.x.event.trim());
-  const cut=t=>t.length>90?t.slice(0,90)+'…':t;
+  const cut=t=>t;
   add(`<div class="r-h2">5. 特殊事件</div>`,{keep:1});
-  add(ev.length?`<table class="rt"><colgroup><col style="width:100px"><col></colgroup><thead><tr><th>日期</th><th>內容</th></tr></thead><tbody>${ev.map(r=>`<tr><td class="c">${md(r.d)}（${wd(r.d)}）</td><td style="white-space:pre-wrap">${esc(cut(r.x.event.trim()))}</td></tr>`).join('')}</tbody></table>`:`<div class="r-note">期間內沒有特殊事件。</div>`);
+  add(ev.length?`<table class="rt"><colgroup><col style="width:100px"><col></colgroup><thead><tr><th>日期</th><th>內容</th></tr></thead><tbody>${ev.map(r=>`<tr><td class="c">${D.dates[0].slice(0,4)!==D.dates[D.dates.length-1].slice(0,4)?r.d.replace(/-/g,'/'):md(r.d)+'（'+wd(r.d)+'）'}</td><td style="white-space:pre-wrap">${esc(cut(r.x.event.trim()))}</td></tr>`).join('')}</tbody></table>`:`<div class="r-note">期間內沒有特殊事件。</div>`);
 
   // ---- skin overview
   const entries=D.rec.flatMap(r=>r.x.skin.filter(sk=>sk.part||sk.status.length||sk.photos.length||sk.note.trim()).map(sk=>({...sk,d:r.d})));
@@ -928,10 +929,14 @@ function buildBlocks(s,e,tight){
 
   // ---- daily detail
   add(`<div class="r-h2">7. 每日詳細紀錄</div>`,{brk:1,keep:1});
+  let gap=[];
+  const flushGap=()=>{if(!gap.length)return;const a=gap[0],b=gap[gap.length-1];
+    add(`<div class="r-row empty"><div>${a===b?`${a.replace(/-/g,'/')}（${wd(a)}）`:`${a.replace(/-/g,'/')} – ${b.replace(/-/g,'/')}`}</div><div>未記錄${a===b?'':`（${gap.length} 天）`}</div></div>`);gap=[]};
   D.recs.forEach(({d,x,has})=>{
+    if(!has){gap.push(d);return}
+    flushGap();
     const sn=x&&x.session?sessionNo(d):0;
     add(`<div class="r-dayh"><span>${d.replace(/-/g,'/')}（${wd(d)}）</span>${sn?`<span class="tag">調理日・第 ${sn} 次</span>`:''}</div>`,{keep:1});
-    if(!has){add(`<div class="r-row empty"><div>—</div><div>未記錄</div></div>`);return}
     const R=[];
     const r=(k,v)=>{if(v)R.push([k,v])};
     r('體重',String(x.weight).trim()?`${esc(x.weight)} kg`:'');
@@ -950,6 +955,7 @@ function buildBlocks(s,e,tight){
     r('特殊事件',esc(x.event.trim()));
     R.forEach(([k,v])=>add(`<div class="r-row"><div>${k}</div><div>${v}</div></div>`));
   });
+  flushGap();
   return B;
 }
 
