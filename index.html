@@ -25,6 +25,7 @@
   /* report sheet: always printed light */
   --r-ink:#25313d; --r-ink2:#5f6c79; --r-ink3:#8e99a5; --r-line:#d3dbe4; --r-zebra:#f3f6f9;
   --r-head:#34495e; --r-blue:#4a90e2; --r-blue-soft:#eef4fb; --r-red:#c0392b; --r-paper:#ffffff;
+  --r-font:"PingFang TC","Heiti TC","Microsoft JhengHei","Noto Sans CJK TC","Noto Sans TC",sans-serif;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#11161d; --surface:#19212b; --ink:#e3e8ee; --ink-2:#a2aebb; --ink-3:#77838f;
@@ -130,6 +131,12 @@ button{cursor:pointer}
 .photos{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
 .ph{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:var(--line-2);max-width:100%}
 .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .no{position:absolute;top:3px;left:3px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:rgba(20,26,34,.62);color:#fff;font-size:12px;line-height:22px;text-align:center;font-variant-numeric:tabular-nums}
+.ph .mv{position:absolute;bottom:3px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(20,26,34,.62);color:#fff;display:grid;place-items:center;padding:0}
+.ph .mv svg{width:14px;height:14px;stroke:#fff}
+.ph .mv.l{left:3px}.ph .mv.r{right:3px}
+.sk-mv{border:1px solid var(--line);background:var(--surface);border-radius:7px;width:30px;height:30px;display:grid;place-items:center;flex:none;padding:0}
+.sk-mv svg{width:14px;height:14px;stroke:var(--ink-2)}
 .ph .x{position:absolute;top:3px;right:3px;width:24px;height:24px;border-radius:50%;border:0;background:rgba(20,26,34,.62);color:#fff;font-size:14px;line-height:1;display:grid;place-items:center}
 .ph.addph{border:1.5px dashed var(--line);background:var(--surface);display:grid;place-items:center;color:var(--ink-3);font-size:12.5px;text-align:center;cursor:pointer}
 .ph.addph input{position:absolute;inset:0;opacity:0;cursor:pointer}
@@ -183,7 +190,7 @@ button{cursor:pointer}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);font-size:13.5px;padding:9px 16px;border-radius:9px;z-index:20;max-width:calc(100% - 32px)}
 
 /* ===== report sheet ===== */
-.rp-page{width:794px;height:1123px;background:var(--r-paper);color:var(--r-ink);display:flex;flex-direction:column;padding:0 58px;font-family:var(--font);font-size:12.5px;line-height:1.55;box-shadow:0 1px 3px rgba(0,0,0,.18);flex:none}
+.rp-page{width:794px;height:1123px;background:var(--r-paper);color:var(--r-ink);display:flex;flex-direction:column;padding:0 58px;font-family:var(--r-font);font-size:12.5px;line-height:1.55;box-shadow:0 1px 3px rgba(0,0,0,.18);flex:none}
 .rp-bar{height:12px;background:var(--r-blue);margin:0 -58px;flex:none}
 .rp-run{height:38px;line-height:38px;font-size:11px;color:var(--r-ink3);flex:none}
 .rp-flow{flex:1;overflow:hidden;display:flex;flex-direction:column;gap:8px;min-height:0}
@@ -222,9 +229,9 @@ table.rt{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
 .r-chart .t{font-size:12px;font-weight:500;color:var(--r-ink)}
 .r-chart .t span{font-weight:400;color:var(--r-ink3);font-size:11px;margin-left:6px}
 .r-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
-.r-tile .img{width:100%;background:var(--r-zebra);border:1px solid var(--r-line)}
-.r-tile .img img{display:block;width:100%;height:auto;aspect-ratio:3/4;object-fit:contain}
-.r-tile .img .na{aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--r-ink3)}
+.r-tile .img{position:relative;width:100%;height:0;padding-top:133.333%;background:var(--r-zebra);border:1px solid var(--r-line);overflow:hidden}
+.r-tile .img img{position:absolute;inset:0;display:block;width:100%;height:100%;object-fit:contain}
+.r-tile .img .na{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--r-ink3)}
 .r-tile .cap{font-size:10.5px;color:var(--r-ink2);margin-top:3px;line-height:1.4}
 .r-tile .cap b{color:var(--r-ink);font-weight:500}
 .r-tile .cap .nst{color:var(--r-ink3)}
@@ -526,15 +533,16 @@ function partSelect(s){
 }
 function renderSkin(d){
   let h='';
-  d.skin.forEach(s=>{
+  d.skin.forEach((s,si)=>{
     const up=S.uploading[s.id]||0;
-    h+=`<div class="sub"><div class="sub-h"><span class="t" style="flex:none">部位</span>${partSelect(s)}${delBtn('sk:'+s.id)}</div>
+    const mv=d.skin.length>1?`${si>0?`<button class="sk-mv" data-act="skMove" data-i="${s.id}" data-v="-1" aria-label="這筆往上移"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg></button>`:''}${si<d.skin.length-1?`<button class="sk-mv" data-act="skMove" data-i="${s.id}" data-v="1" aria-label="這筆往下移"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></button>`:''}`:'';
+    h+=`<div class="sub"><div class="sub-h"><span class="t" style="flex:none">部位</span>${partSelect(s)}${mv}${delBtn('sk:'+s.id)}</div>
       ${S.newPart[s.id]?`<div class="addrow"><input class="inp" id="np-${s.id}" placeholder="新部位名稱，例如：右耳後"><button class="btn" data-act="partAdd" data-i="${s.id}">加入</button></div>`:''}
       <div class="lbl">狀態</div>
       <div class="opts">${S.cfg.statuses.map(t=>`<button class="opt${s.status.includes(t)?' on':''}" data-act="skStat" data-i="${s.id}" data-v="${esc(t)}">${esc(t)}</button>`).join('')}</div>
       <div class="addrow"><input class="inp" id="ns-${s.id}" placeholder="其他狀態"><button class="btn" data-act="statAdd" data-i="${s.id}">新增</button></div>
       <div class="lbl">照片</div>
-      <div class="photos">${s.photos.map((p,j)=>`<div class="ph"><img ${imgAttr(p)} alt="${esc(s.part||'皮膚')}照片 ${j+1}" loading="lazy"><button class="x" data-act="phDel" data-i="${s.id}" data-p="${esc(p.id)}" aria-label="移除照片">×</button></div>`).join('')}
+      <div class="photos">${s.photos.map((p,j)=>`<div class="ph"><img ${imgAttr(p)} alt="${esc(s.part||'皮膚')}照片 ${j+1}" loading="lazy">${s.photos.length>1?`<span class="no">${j+1}</span>`:''}<button class="x" data-act="phDel" data-i="${s.id}" data-p="${esc(p.id)}" aria-label="移除照片">×</button>${j>0?`<button class="mv l" data-act="phMove" data-i="${s.id}" data-p="${esc(p.id)}" data-v="-1" aria-label="往前移"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>`:''}${j<s.photos.length-1?`<button class="mv r" data-act="phMove" data-i="${s.id}" data-p="${esc(p.id)}" data-v="1" aria-label="往後移"><svg viewBox="0 0 24 24" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg></button>`:''}</div>`).join('')}
         ${Array.from({length:up},()=>`<div class="ph up">上傳中…</div>`).join('')}
         ${DB?`<label class="ph addph">＋ 照片<input type="file" accept="image/*" multiple data-photo="${s.id}"></label>`:''}</div>
       <textarea class="ta" id="sk-n-${s.id}" data-sk="note" data-i="${s.id}" placeholder="備註，例如：比昨天紅，範圍約一元硬幣大">${esc(s.note)}</textarea></div>`;
@@ -597,7 +605,8 @@ function renderSet(){
     ${S.imp?`<div class="sub"><p class="hint" style="color:var(--ink)">匯入「${esc(S.imp.when)}」的備份（${S.imp.n} 天紀錄）會取代這支手機上目前的所有紀錄。</p><div class="two"><button class="btn" data-act="impCancel">取消</button><button class="btn pri" data-act="impGo">確定匯入</button></div></div>`:''}
     <div class="status" role="status">${esc(S.bakStatus||'')}</div></div>
   <div class="panel"><h2>S麻交代事項</h2><p class="desc">「執行中」的會列在週報第一頁。</p>
-    ${Object.values(S.ins).sort((a,b)=>b.date.localeCompare(a.date)).map(i=>`<div class="ins"><span class="tx"><span class="dt">${i.date.replace(/-/g,'/')}</span>${esc(i.text)}</span><button class="pill${i.active?' on':''}" data-act="insToggle" data-id="${i.id}">${i.active?'執行中':'已結束'}</button>${delBtn('in:'+i.id,'刪除')}</div>`).join('')||'<p class="hint">還沒有紀錄。</p>'}</div>`;
+    ${Object.values(S.ins).sort((a,b)=>b.date.localeCompare(a.date)).map(i=>`<div class="ins"><span class="tx"><span class="dt">${i.date.replace(/-/g,'/')}</span>${esc(i.text)}</span><button class="pill${i.active?' on':''}" data-act="insToggle" data-id="${i.id}">${i.active?'執行中':'已結束'}</button>${delBtn('in:'+i.id,'刪除')}</div>`).join('')||'<p class="hint">還沒有紀錄。</p>'}</div>
+  <p class="hint" style="text-align:center;margin:16px 0 0">程式版本 2026.11.11b</p>`;
 }
 
 /* live summary update while typing */
@@ -635,6 +644,8 @@ document.addEventListener('click',e=>{
     case 'skStat':{const s=find(d.skin,b.dataset.i);if(s){tog(s.status,b.dataset.v);saveDay(date)}break}
     case 'statAdd':{const s=find(d.skin,b.dataset.i);const inp=$('#ns-'+b.dataset.i);const v=inp&&inp.value.trim();if(s&&v){if(!S.cfg.statuses.includes(v)){S.cfg.statuses.push(v);saveCfg()}if(!s.status.includes(v))s.status.push(v);saveDay(date)}break}
     case 'partAdd':{const s=find(d.skin,b.dataset.i);const inp=$('#np-'+b.dataset.i);const v=inp&&inp.value.trim();if(s&&v){const g=S.cfg.parts.find(g=>g.g==='其他')||(S.cfg.parts.push({g:'其他',items:[]}),S.cfg.parts[S.cfg.parts.length-1]);if(!S.cfg.parts.some(x=>x.items.includes(v))){g.items.push(v);saveCfg()}s.part=v;delete S.newPart[s.id];saveDay(date)}break}
+    case 'phMove':{const s=find(d.skin,b.dataset.i);if(s){const i=s.photos.findIndex(p=>p.id===b.dataset.p),j=i+(+b.dataset.v);if(i>=0&&j>=0&&j<s.photos.length){[s.photos[i],s.photos[j]]=[s.photos[j],s.photos[i]];saveDay(date)}}break}
+    case 'skMove':{const i=d.skin.findIndex(x=>x.id===b.dataset.i),j=i+(+b.dataset.v);if(i>=0&&j>=0&&j<d.skin.length){[d.skin[i],d.skin[j]]=[d.skin[j],d.skin[i]];saveDay(date)}break}
     case 'phDel':{const s=find(d.skin,b.dataset.i);if(s){const pid=b.dataset.p;const ph=s.photos.find(p=>p.id===pid);s.photos=s.photos.filter(p=>p.id!==pid);saveDay(date);if(ph)dropPhoto(ph)}break}
     case 'snackAdd':d.snacks.push({id:uid(),name:'',amt:''});saveDay(date);break;
     case 'insAdd':addIns(b.dataset.ctx);return;
@@ -821,7 +832,7 @@ function chartSVG(dates,pts,{type,yMin,yMax,ticks,tf,w=318,h=150}){
   const Wd=w,H=h,L=34,R=8,T=10,B=22,iw=Wd-L-R,ih=H-T-B,n=dates.length;
   const x=i=>L+(n===1?iw/2:(type==='bar'?(i+.5)*iw/n:i*iw/(n-1)));
   const y=v=>T+ih-(v-yMin)/(yMax-yMin||1)*ih;
-  let g=`<svg width="${Wd}" height="${H}" viewBox="0 0 ${Wd} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="Noto Sans TC, sans-serif">`;
+  let g=`<svg width="${Wd}" height="${H}" viewBox="0 0 ${Wd} ${H}" xmlns="http://www.w3.org/2000/svg" font-family="PingFang TC, Heiti TC, Microsoft JhengHei, Noto Sans CJK TC, sans-serif">`;
   ticks.forEach(t=>{g+=`<line x1="${L}" x2="${Wd-R}" y1="${y(t)}" y2="${y(t)}" stroke="#e3e8ee" stroke-width="1"/><text x="${L-6}" y="${y(t)+3.5}" font-size="10" fill="#8e99a5" text-anchor="end">${tf(t)}</text>`});
   const step=n>10?Math.ceil(n/8):1;
   dates.forEach((d,i)=>{if(i%step===0||i===n-1)g+=`<text x="${x(i)}" y="${H-6}" font-size="10" fill="#8e99a5" text-anchor="middle">${md(d)}</text>`});
@@ -911,7 +922,7 @@ function buildBlocks(s,e,tight){
   add(`<div class="r-h2">6. 皮膚總覽</div>`,{brk:1,keep:1});
   if(!entries.length)add(`<div class="r-note">期間內沒有皮膚紀錄。</div>`);
   else{
-    add(`<div class="r-note">共 ${parts.length} 個部位、${entries.length} 筆紀錄、${nPh} 張照片。依日期分區，同一天的照片排在一起。</div>`);
+    add(`<div class="r-note">共 ${parts.length} 個部位、${entries.length} 筆紀錄、${nPh} 張照片。依日期分區，照片順序與紀錄頁相同。</div>`);
     const ds=[...new Set(entries.map(x=>x.d))].sort();
     if(ds.length<=10){
       add(`<table class="rt mx"><colgroup><col style="width:84px">${ds.map(()=>'<col>').join('')}</colgroup><thead><tr><th>部位</th>${ds.map(d=>`<th>${md(d)}<br>（${wd(d)}）</th>`).join('')}</tr></thead><tbody>${
@@ -919,7 +930,7 @@ function buildBlocks(s,e,tight){
     }
     const ord=x=>{const i=order.indexOf(x.part);return i<0?999:i};
     [...new Set(entries.map(x=>x.d))].sort().forEach(d=>{
-      const es=entries.filter(x=>x.d===d).sort((x,y)=>ord(x)-ord(y));
+      const es=entries.filter(x=>x.d===d);
       const ph=es.flatMap(x=>x.photos.map(f=>({...f,d,part:x.part||'未指定部位',st:x.status})));
       add(`<div class="r-h3"><b>${md(d)}（${wd(d)}）</b><span>${es.length} 個部位・${ph.length} 張照片</span></div>`,{keep:1});
       const tr=es.filter(x=>x.note.trim()||!x.photos.length);
@@ -1066,6 +1077,10 @@ async function prepPhotos(){
 async function waitImages(){
   await Promise.all([...$('#rpScale').querySelectorAll('img')].map(i=>i.complete?0:new Promise(r=>{i.onload=i.onerror=r})));
 }
+function pagesOverflow(pages){
+  return pages.some(p=>{const f=p.querySelector('.rp-flow'),fb=f.getBoundingClientRect().bottom;
+    return f.scrollHeight>f.clientHeight+1||[...f.children].some(c=>c.getBoundingClientRect().bottom>fb+1)});
+}
 async function doPreview(silent){
   if(S.rs>S.re){S.repStatus='開始日期不能晚於結束日期';S.repErr=true;render();return false}
   try{if(document.fonts&&document.fonts.ready)await document.fonts.ready}catch(e){}
@@ -1074,7 +1089,14 @@ async function doPreview(silent){
   let pages=paginate(buildBlocks(S.rs,S.re,false),false);
   const skinAt=()=>pages.findIndex(pg=>[...pg.querySelectorAll('.r-h2')].some(h=>h.textContent.startsWith('6.')));
   if(skinAt()>1)pages=paginate(buildBlocks(S.rs,S.re,true),true);
-  await waitImages();
+  const tightNow=skinAt()>1;
+  for(let tries=0;tries<3;tries++){
+    await waitImages();
+    try{if(document.fonts&&document.fonts.ready)await document.fonts.ready}catch(e){}
+    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+    if(!pagesOverflow(pages))break;
+    pages=paginate(buildBlocks(S.rs,S.re,tightNow),tightNow);
+  }
   fitPreview();
   $('#prevNote').textContent=`預覽：${pages.length} 頁${S.cfg.diet?'，鮮食報告會接在最後':''}。紀錄有更新時請重新預覽。`;
   if(!silent){S.repStatus='';S.repErr=false;render();$('#rpArea').hidden=false;$('#rpArea').scrollIntoView({behavior:'smooth',block:'start'})}
