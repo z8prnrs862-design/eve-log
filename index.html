@@ -223,8 +223,8 @@ table.rt{width:100%;border-collapse:collapse;font-size:12px;table-layout:fixed}
 .r-chart .t span{font-weight:400;color:var(--r-ink3);font-size:11px;margin-left:6px}
 .r-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
 .r-tile .img{width:100%;background:var(--r-zebra);border:1px solid var(--r-line)}
-.r-tile .img img{display:block;width:100%;height:auto}
-.r-tile .img .na{height:216px;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--r-ink3)}
+.r-tile .img img{display:block;width:100%;height:auto;aspect-ratio:3/4;object-fit:contain}
+.r-tile .img .na{aspect-ratio:3/4;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:var(--r-ink3)}
 .r-tile .cap{font-size:10.5px;color:var(--r-ink2);margin-top:3px;line-height:1.4}
 .r-tile .cap b{color:var(--r-ink);font-weight:500}
 .r-tile .cap .nst{color:var(--r-ink3)}
@@ -864,9 +864,12 @@ function buildBlocks(s,e,tight){
   else R('體重','',cnt(0),'');
   {const v=D.I.map(o=>o.v);let res='';const note=[];
    if(v.length){res=uni(v)?`等級 ${v[0]}（${ITCH[v[0]]}），全期間`:distStr(v,ITCH.map((l,i)=>`等級 ${i}（${l}）`))}
+   const multiYr=s.slice(0,4)!==e.slice(0,4),dl=d=>multiYr?d.replace(/-/g,'/'):md(d);let run=null;const flushRun=()=>{if(run)note.push(`${run.a===run.b?dl(run.a):`${dl(run.a)}–${dl(run.b)}`}　${run.t}`);run=null};
    D.rec.filter(r=>(r.x.itch||0)>0||r.x.itchActs.length||r.x.itchSpot.trim()).forEach(r=>{const x=r.x,det=[];
      if(x.itchActs.length)det.push(x.itchActs.join('、'));if(x.itchSpot.trim())det.push(esc(x.itchSpot.trim()));
-     note.push(`${md(r.d)}　${x.itch!=null?`等級 ${x.itch}（${ITCH[x.itch]}）`:'未分級'}${det.length?`（${det.join('；')}）`:''}`)});
+     const t=`${x.itch!=null?`等級 ${x.itch}（${ITCH[x.itch]}）`:'未分級'}${det.length?`（${det.join('；')}）`:''}`;
+     if(run&&run.t===t&&addDays(run.b,1)===r.d)run.b=r.d;else{flushRun();run={a:r.d,b:r.d,t}}});
+   flushRun();
    R('搔癢行為',res,'',note.join('<br>'))}
   const cat=(k,f,labels)=>{const v=D.rec.filter(r=>r.x[f]!=null).map(r=>r.x[f]);R(k,v.length?(uni(v)?labels[v[0]]:distStr(v,labels)):'',cnt(v.length),'')};
   cat('食慾','appetite',APPETITE);cat('活動力','energy',ENERGY);
@@ -967,20 +970,71 @@ function newPage(host,tight){
 }
 function paginate(blocks,tight){
   const host=$('#rpScale');host.innerHTML='';
-  let page=newPage(host,tight),flow=page.querySelector('.rp-flow');
-  const over=()=>flow.scrollHeight>flow.clientHeight+1;
+  let page,flow;
+  const fresh=()=>{page=newPage(host,tight);flow=page.querySelector('.rp-flow')};
+  const over=()=>{const l=flow.lastElementChild;if(!l)return false;const fr=flow.getBoundingClientRect(),k=fr.height/flow.clientHeight||1;return l.getBoundingClientRect().bottom>fr.bottom-2*k||flow.scrollHeight>flow.clientHeight};
+  const big=el=>el.offsetHeight>flow.clientHeight*0.4;
+  const toNewPage=()=>{const carry=[];while(flow.lastElementChild&&flow.lastElementChild.dataset.keep&&flow.children.length>1){carry.unshift(flow.lastElementChild);flow.removeChild(flow.lastElementChild)}
+    fresh();carry.forEach(c=>flow.appendChild(c))};
+  const deHTML=h=>{const d=document.createElement('div');d.innerHTML=h;return d.textContent};
+  const pieces=(html,sep,chunk)=>{const out=[];html.split(sep).forEach(pt=>{if(pt.length>chunk*3&&!pt.includes('<')){const t=deHTML(pt);for(let i=0;i<t.length;i+=chunk)out.push(esc(t.slice(i,i+chunk)))}else out.push(pt)});return out};
+  const placeTable=tbl=>{
+    const rows=tbl.tBodies[0]?[...tbl.tBodies[0].rows]:[];
+    const shell=()=>{const c=tbl.cloneNode(false);[...tbl.children].forEach(ch=>{if(ch.tagName!=='TBODY')c.appendChild(ch.cloneNode(true))});const tb=document.createElement('tbody');c.appendChild(tb);return[c,tb]};
+    let [cur,tb]=shell();flow.appendChild(cur);
+    const nextShell=carry=>{if(!tb.rows.length&&cur.parentNode)cur.parentNode.removeChild(cur);carry?toNewPage():fresh();[cur,tb]=shell();flow.appendChild(cur)};
+    const splitRow=r=>{
+      if(r.parentNode)r.parentNode.removeChild(r);
+      const L=[...r.cells].map(c=>pieces(c.innerHTML,/<br\s*\/?>|\n/i,40));
+      const max=Math.max(...L.map(x=>x.length));let i=0,first=true;
+      while(i<max){
+        const nr=r.cloneNode(true),cs=[...nr.cells];tb.appendChild(nr);
+        const set=m=>cs.forEach((c,ci)=>{c.innerHTML=(ci===0&&L[0].length===1)?(L[0][0]+(first?'':'（續）')):L[ci].slice(i,i+m).join('<br>')});
+        set(1);
+        if(over()&&(tb.rows.length>1||flow.children.length>1)){tb.removeChild(nr);nextShell(!tb.rows.length);continue}
+        let k=1;while(i+k<max){set(k+1);if(over()){set(k);break}k++}
+        i+=k;first=false;
+        if(i<max)nextShell(false);
+      }
+    };
+    for(const r of rows){
+      tb.appendChild(r);
+      if(!over())continue;
+      if(big(r)){splitRow(r);continue}
+      tb.removeChild(r);
+      nextShell(!tb.rows.length);tb.appendChild(r);
+      if(over())splitRow(r);
+    }
+    if(!tb.rows.length&&cur.parentNode)cur.parentNode.removeChild(cur);
+  };
+  const pick=c=>c.querySelector('.r-sum')||(c.classList.contains('r-row')?c.lastElementChild:null);
+  const placeText=el=>{
+    const parts=pieces(pick(el).innerHTML,'\n',80);
+    let i=0,first=true;
+    while(i<parts.length){
+      const c=el.cloneNode(true),t=pick(c);
+      if(!first){const lab=c.querySelector('.r-box-h')||c.firstElementChild;if(lab)lab.textContent+='（續）'}
+      flow.appendChild(c);t.innerHTML=parts[i];
+      if(over()&&flow.children.length>1){flow.removeChild(c);toNewPage();continue}
+      i++;
+      while(i<parts.length){const prev=t.innerHTML;t.innerHTML=prev+'\n'+parts[i];if(over()){t.innerHTML=prev;break}i++}
+      first=false;if(i<parts.length)fresh();
+    }
+  };
+  const place=el=>{
+    flow.appendChild(el);if(!over())return;
+    const isBig=big(el);flow.removeChild(el);
+    if(el.tagName==='TABLE'){placeTable(el);return}
+    if(isBig&&pick(el)){placeText(el);return}
+    if(flow.children.length){toNewPage();flow.appendChild(el);if(!over())return;flow.removeChild(el)}
+    if(pick(el))placeText(el);else flow.appendChild(el);
+  };
+  fresh();
   for(const b of blocks){
-    if(b.brk&&flow.children.length){page=newPage(host,tight);flow=page.querySelector('.rp-flow')}
+    if(b.brk&&flow.children.length)fresh();
     const t=document.createElement('template');t.innerHTML=b.html.trim();const el=t.content.firstElementChild;
     if(b.keep)el.dataset.keep='1';
-    flow.appendChild(el);
-    if(over()){
-      flow.removeChild(el);
-      const carry=[];while(flow.lastElementChild&&flow.lastElementChild.dataset.keep&&flow.children.length>1){carry.unshift(flow.lastElementChild);flow.removeChild(flow.lastElementChild)}
-      if(!flow.children.length&&!carry.length){flow.appendChild(el);continue}
-      page=newPage(host,tight);flow=page.querySelector('.rp-flow');
-      carry.forEach(c=>flow.appendChild(c));flow.appendChild(el);
-    }
+    place(el);
   }
   const pages=[...host.children];
   pages.forEach((p,i)=>{p.querySelector('.rp-foot').textContent=`第 ${i+1} 頁／共 ${pages.length} 頁`;if(i)p.querySelector('.rp-run').textContent=`伊芙 觀察週報｜${S.rs.replace(/-/g,'/')} – ${S.re.replace(/-/g,'/')}`});
